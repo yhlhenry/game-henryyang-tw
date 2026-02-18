@@ -1,0 +1,108 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+// 遊戲列表 - 新增遊戲只需在這裡加一筆
+const games = [
+  {
+    slug: 'example',
+    title: '範例遊戲',
+    description: '這是一個範例遊戲頁面，展示如何新增遊戲。',
+    emoji: '🎯',
+    tags: ['範例'],
+  },
+];
+---
+
+<BaseLayout title="首頁">
+  <section class="hero">
+    <h1>🎮 Henry 的小遊戲</h1>
+    <p>一些我做的有趣小遊戲和互動實驗</p>
+  </section>
+
+  <section class="games-grid">
+    {games.map((game) => (
+      <a href={`/games/${game.slug}/`} class="game-card">
+        <span class="game-emoji">{game.emoji}</span>
+        <h2>{game.title}</h2>
+        <p>{game.description}</p>
+        <div class="tags">
+          {game.tags.map((tag) => (
+            <span class="tag">{tag}</span>
+          ))}
+        </div>
+      </a>
+    ))}
+  </section>
+</BaseLayout>
+
+<style>
+  .hero {
+    text-align: center;
+    padding: 3rem 0;
+  }
+
+  .hero h1 {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .hero p {
+    color: #aaa;
+    font-size: 1.125rem;
+  }
+
+  .games-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+    padding: 1rem 0;
+  }
+
+  .game-card {
+    background: #1a1a2e;
+    border: 1px solid #2a2a3a;
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.2s, border-color 0.2s;
+  }
+
+  .game-card:hover {
+    transform: translateY(-4px);
+    border-color: #4a4a6a;
+  }
+
+  .game-emoji {
+    font-size: 2.5rem;
+    display: block;
+    margin-bottom: 0.75rem;
+  }
+
+  .game-card h2 {
+    font-size: 1.25rem;
+    margin-bottom: 0.5rem;
+    color: #fff;
+  }
+
+  .game-card p {
+    color: #aaa;
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+
+  .tags {
+    margin-top: 0.75rem;
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .tag {
+    background: #2a2a3a;
+    padding: 0.25rem 0.625rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    color: #ccc;
+  }
+</style>

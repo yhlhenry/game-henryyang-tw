@@ -1,0 +1,78 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="範例遊戲" description="這是一個範例遊戲頁面">
+  <div class="game-page">
+    <a href="/" class="back-link">&larr; 返回遊戲列表</a>
+    <h1>🎯 範例遊戲</h1>
+    <div class="game-container" id="game">
+      <p>在這裡放你的遊戲內容（Canvas、HTML 互動元素等）</p>
+      <button id="start-btn">開始遊戲</button>
+    </div>
+  </div>
+</BaseLayout>
+
+<script>
+  const btn = document.getElementById('start-btn');
+  btn?.addEventListener('click', () => {
+    btn.textContent = '遊戲進行中...';
+  });
+</script>
+
+<style>
+  .game-page {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .back-link {
+    color: #aaa;
+    text-decoration: none;
+    font-size: 0.9rem;
+    display: inline-block;
+    margin-bottom: 1rem;
+  }
+
+  .back-link:hover {
+    color: #fff;
+  }
+
+  h1 {
+    font-size: 2rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .game-container {
+    background: #1a1a2e;
+    border: 1px solid #2a2a3a;
+    border-radius: 12px;
+    padding: 2rem;
+    text-align: center;
+    min-height: 400px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+  }
+
+  .game-container p {
+    color: #aaa;
+  }
+
+  button {
+    background: #4a4a8a;
+    color: #fff;
+    border: none;
+    padding: 0.75rem 2rem;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  button:hover {
+    background: #5a5a9a;
+  }
+</style>
