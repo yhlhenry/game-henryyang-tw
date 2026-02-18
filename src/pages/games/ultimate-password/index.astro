@@ -1,0 +1,293 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="終極密碼" description="猜一個 1 到 100 的神秘數字">
+  <div class="game-page">
+    <a href="/" class="back-link">&larr; 返回遊戲列表</a>
+    <h1>🔐 終極密碼</h1>
+    <div class="game-container" id="game">
+      <div class="range-display">
+        <span id="lower-bound">1</span>
+        <span class="range-separator">～</span>
+        <span id="upper-bound">100</span>
+      </div>
+
+      <div class="input-row">
+        <input type="number" id="guess-input" min="1" max="100" placeholder="輸入數字" />
+        <button id="guess-btn">猜！</button>
+      </div>
+
+      <p id="message" class="message"></p>
+
+      <div id="history-section" class="history-section" style="display:none;">
+        <h3>猜測紀錄</h3>
+        <ul id="history-list"></ul>
+      </div>
+
+      <button id="restart-btn" style="display:none;">再玩一次</button>
+    </div>
+  </div>
+</BaseLayout>
+
+<script>
+  let lo: number;
+  let hi: number;
+  let attempts: number;
+  let gameOver: boolean;
+
+  const lowerEl = document.getElementById('lower-bound')!;
+  const upperEl = document.getElementById('upper-bound')!;
+  const input = document.getElementById('guess-input') as HTMLInputElement;
+  const guessBtn = document.getElementById('guess-btn')!;
+  const messageEl = document.getElementById('message')!;
+  const historySection = document.getElementById('history-section')!;
+  const historyList = document.getElementById('history-list')!;
+  const restartBtn = document.getElementById('restart-btn')!;
+
+  function init() {
+    lo = 1;
+    hi = 100;
+    attempts = 0;
+    gameOver = false;
+
+    lowerEl.textContent = '1';
+    upperEl.textContent = '100';
+    input.value = '';
+    input.min = '1';
+    input.max = '100';
+    input.disabled = false;
+    guessBtn.style.display = '';
+    messageEl.textContent = '';
+    messageEl.className = 'message';
+    historySection.style.display = 'none';
+    historyList.innerHTML = '';
+    restartBtn.style.display = 'none';
+    input.focus();
+  }
+
+  function handleGuess() {
+    if (gameOver) return;
+
+    const value = parseInt(input.value, 10);
+    if (isNaN(value) || value < lo || value > hi) {
+      messageEl.textContent = `請輸入 ${lo} 到 ${hi} 之間的整數`;
+      messageEl.className = 'message warn';
+      input.focus();
+      return;
+    }
+
+    attempts++;
+    historySection.style.display = '';
+
+    const li = document.createElement('li');
+
+    // 唯一剩一個數字 → 玩家猜中
+    if (lo === hi) {
+      gameOver = true;
+      li.textContent = `#${attempts} → ${value} ✅ 猜中！`;
+      li.className = 'correct';
+      historyList.prepend(li);
+
+      messageEl.textContent = `恭喜！答案就是 ${value}，你用了 ${attempts} 次猜中！`;
+      messageEl.className = 'message success';
+      input.disabled = true;
+      guessBtn.style.display = 'none';
+      restartBtn.style.display = '';
+    } else {
+      // 計算猜測值兩側各有多少數字
+      const countBelow = value - lo;   // lo .. value-1
+      const countAbove = hi - value;   // value+1 .. hi
+
+      // 永遠把答案推向數字比較多的那一半；相等時隨機選邊
+      const goHigher = countAbove > countBelow
+        || (countAbove === countBelow && Math.random() < 0.5);
+
+      if (goHigher) {
+        lo = value + 1;
+        lowerEl.textContent = String(lo);
+        input.min = String(lo);
+        li.textContent = `#${attempts} → ${value} 太小了 ⬆`;
+        li.className = 'too-low';
+        historyList.prepend(li);
+        messageEl.textContent = '太小了！再大一點';
+        messageEl.className = 'message too-low';
+      } else {
+        hi = value - 1;
+        upperEl.textContent = String(hi);
+        input.max = String(hi);
+        li.textContent = `#${attempts} → ${value} 太大了 ⬇`;
+        li.className = 'too-high';
+        historyList.prepend(li);
+        messageEl.textContent = '太大了！再小一點';
+        messageEl.className = 'message too-high';
+      }
+    }
+
+    input.value = '';
+    input.focus();
+  }
+
+  guessBtn.addEventListener('click', handleGuess);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') handleGuess();
+  });
+  restartBtn.addEventListener('click', init);
+
+  init();
+</script>
+
+<style>
+  .game-page {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .back-link {
+    color: #aaa;
+    text-decoration: none;
+    font-size: 0.9rem;
+    display: inline-block;
+    margin-bottom: 1rem;
+  }
+
+  .back-link:hover {
+    color: #fff;
+  }
+
+  h1 {
+    font-size: 2rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .game-container {
+    background: #1a1a2e;
+    border: 1px solid #2a2a3a;
+    border-radius: 12px;
+    padding: 2rem;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.25rem;
+  }
+
+  .range-display {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 3rem;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  .range-separator {
+    color: #666;
+    font-size: 2rem;
+  }
+
+  .input-row {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  input[type='number'] {
+    background: #2a2a3a;
+    border: 1px solid #4a4a6a;
+    color: #fff;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-size: 1.125rem;
+    width: 140px;
+    text-align: center;
+    outline: none;
+  }
+
+  input[type='number']:focus {
+    border-color: #6a6aaa;
+  }
+
+  input[type='number']:disabled {
+    opacity: 0.5;
+  }
+
+  button {
+    background: #4a4a8a;
+    color: #fff;
+    border: none;
+    padding: 0.75rem 2rem;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  button:hover {
+    background: #5a5a9a;
+  }
+
+  .message {
+    font-size: 1.125rem;
+    min-height: 1.5em;
+  }
+
+  .message.warn {
+    color: #f0ad4e;
+  }
+
+  .message.too-low {
+    color: #5bc0de;
+  }
+
+  .message.too-high {
+    color: #ff6b6b;
+  }
+
+  .message.success {
+    color: #5cb85c;
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+
+  .history-section {
+    width: 100%;
+    max-width: 360px;
+  }
+
+  .history-section h3 {
+    font-size: 0.95rem;
+    color: #aaa;
+    margin-bottom: 0.5rem;
+  }
+
+  .history-section ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .history-section li {
+    background: #2a2a3a;
+    padding: 0.4rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    color: #ccc;
+  }
+
+  .history-section li.too-low {
+    border-left: 3px solid #5bc0de;
+  }
+
+  .history-section li.too-high {
+    border-left: 3px solid #ff6b6b;
+  }
+
+  .history-section li.correct {
+    border-left: 3px solid #5cb85c;
+    color: #5cb85c;
+    font-weight: 600;
+  }
+</style>
