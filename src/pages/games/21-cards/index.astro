@@ -1,0 +1,439 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="21 張牌魔術" description="從 21 張牌中找出你心中的那張">
+  <div class="game-page">
+    <a href="/" class="back-link">&larr; 返回遊戲列表</a>
+    <h1>🎴 21 張牌魔術</h1>
+    <div class="game-container" id="game">
+      <!-- intro -->
+      <div id="stage-intro" class="stage">
+        <p class="magician-line">「我將展示 21 張牌，分成三排。<br>請你在心中選一張牌，然後告訴我它在哪一排。<br>只要三個回合，我就能找到它。」</p>
+        <button id="btn-start">開始魔術</button>
+      </div>
+
+      <!-- pick column -->
+      <div id="stage-pick" class="stage hidden">
+        <div class="round-badge" id="round-badge">第 1 回合（共 3 回合）</div>
+        <p class="magician-line">「你選的牌在哪一排？」</p>
+        <div class="columns-wrapper">
+          <div class="column" data-col="0">
+            <button class="col-btn" data-col="0">這一排</button>
+            <div class="col-cards" id="col-0"></div>
+          </div>
+          <div class="column" data-col="1">
+            <button class="col-btn" data-col="1">這一排</button>
+            <div class="col-cards" id="col-1"></div>
+          </div>
+          <div class="column" data-col="2">
+            <button class="col-btn" data-col="2">這一排</button>
+            <div class="col-cards" id="col-2"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- reveal -->
+      <div id="stage-reveal" class="stage hidden">
+        <p class="magician-line">「讓我感應一下⋯⋯<br>你選的牌，是這張吧？」</p>
+        <div id="reveal-card" class="reveal-card-wrapper"></div>
+        <button id="btn-restart">再玩一次</button>
+      </div>
+    </div>
+  </div>
+</BaseLayout>
+
+<script>
+  const SUITS = ['♠', '♥', '♦', '♣'] as const;
+  const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'] as const;
+
+  type Card = { suit: typeof SUITS[number]; rank: typeof RANKS[number] };
+
+  function buildDeck(): Card[] {
+    const deck: Card[] = [];
+    for (const suit of SUITS) {
+      for (const rank of RANKS) {
+        deck.push({ suit, rank });
+      }
+    }
+    return deck;
+  }
+
+  function shuffle<T>(arr: T[]): T[] {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function isRed(suit: string): boolean {
+    return suit === '♥' || suit === '♦';
+  }
+
+  function renderCardEl(card: Card): HTMLElement {
+    const el = document.createElement('div');
+    el.className = 'card' + (isRed(card.suit) ? ' red' : '');
+    el.innerHTML = `
+      <span class="card-corner top-left"><span class="card-rank">${card.rank}</span><span class="card-suit">${card.suit}</span></span>
+      <span class="card-center">${card.suit}</span>
+      <span class="card-corner bottom-right"><span class="card-rank">${card.rank}</span><span class="card-suit">${card.suit}</span></span>
+    `;
+    return el;
+  }
+
+  function renderBigCard(card: Card): HTMLElement {
+    const el = document.createElement('div');
+    el.className = 'card big-card' + (isRed(card.suit) ? ' red' : '');
+    el.innerHTML = `
+      <span class="card-corner top-left"><span class="card-rank">${card.rank}</span><span class="card-suit">${card.suit}</span></span>
+      <span class="card-center">${card.suit}</span>
+      <span class="card-corner bottom-right"><span class="card-rank">${card.rank}</span><span class="card-suit">${card.suit}</span></span>
+    `;
+    return el;
+  }
+
+  // DOM
+  const stages = {
+    intro: document.getElementById('stage-intro')!,
+    pick: document.getElementById('stage-pick')!,
+    reveal: document.getElementById('stage-reveal')!,
+  };
+
+  const colEls = [
+    document.getElementById('col-0')!,
+    document.getElementById('col-1')!,
+    document.getElementById('col-2')!,
+  ];
+  const roundBadge = document.getElementById('round-badge')!;
+  const revealCardEl = document.getElementById('reveal-card')!;
+
+  let cards: Card[] = [];
+  let round = 0;
+
+  function showStage(name: keyof typeof stages) {
+    for (const [key, el] of Object.entries(stages)) {
+      el.classList.toggle('hidden', key !== name);
+    }
+  }
+
+  // Deal 21 cards into 3 columns (deal across columns, 7 each)
+  function dealToColumns(): Card[][] {
+    const cols: Card[][] = [[], [], []];
+    for (let i = 0; i < 21; i++) {
+      cols[i % 3].push(cards[i]);
+    }
+    return cols;
+  }
+
+  function renderColumns(cols: Card[][]) {
+    for (let c = 0; c < 3; c++) {
+      colEls[c].innerHTML = '';
+      cols[c].forEach(card => {
+        colEls[c].appendChild(renderCardEl(card));
+      });
+    }
+  }
+
+  function startGame() {
+    cards = shuffle(buildDeck()).slice(0, 21);
+    round = 0;
+    nextRound();
+  }
+
+  function nextRound() {
+    round++;
+    roundBadge.textContent = `第 ${round} 回合（共 3 回合）`;
+    const cols = dealToColumns();
+    renderColumns(cols);
+    showStage('pick');
+  }
+
+  function pickColumn(chosenCol: number) {
+    // Rearrange: put chosen column in the middle
+    const cols = dealToColumns();
+    const left = (chosenCol + 1) % 3;
+    const right = (chosenCol + 2) % 3;
+
+    // Reassemble: other col, chosen col (middle), other col
+    cards = [...cols[left], ...cols[chosenCol], ...cols[right]];
+
+    if (round >= 3) {
+      // The card is at index 10 (middle of 21)
+      revealCardEl.innerHTML = '';
+      revealCardEl.appendChild(renderBigCard(cards[10]));
+      showStage('reveal');
+    } else {
+      nextRound();
+    }
+  }
+
+  // Event listeners
+  document.getElementById('btn-start')!.addEventListener('click', startGame);
+  document.getElementById('btn-restart')!.addEventListener('click', startGame);
+
+  document.querySelectorAll('.col-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const col = parseInt((btn as HTMLElement).dataset.col!, 10);
+      pickColumn(col);
+    });
+  });
+</script>
+
+<style>
+  .game-page {
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .back-link {
+    color: #aaa;
+    text-decoration: none;
+    font-size: 0.9rem;
+    display: inline-block;
+    margin-bottom: 1rem;
+  }
+
+  .back-link:hover {
+    color: #fff;
+  }
+
+  h1 {
+    font-size: 2rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .game-container {
+    background: #1a1a2e;
+    border: 1px solid #2a2a3a;
+    border-radius: 12px;
+    padding: 2rem;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.25rem;
+  }
+
+  .stage {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    width: 100%;
+  }
+
+  .hidden {
+    display: none !important;
+  }
+
+  .round-badge {
+    background: #2a2a4a;
+    color: #aaa;
+    padding: 0.25rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+  }
+
+  .magician-line {
+    font-size: 1.1rem;
+    color: #ddd;
+    line-height: 1.8;
+    max-width: 520px;
+  }
+
+  button {
+    background: #4a4a8a;
+    color: #fff;
+    border: none;
+    padding: 0.75rem 2rem;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  button:hover {
+    background: #5a5a9a;
+  }
+
+  /* Columns layout */
+  .columns-wrapper {
+    display: flex;
+    gap: 16px;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    max-width: 240px;
+  }
+
+  .col-btn {
+    width: 100%;
+    padding: 0.5rem;
+    font-size: 0.9rem;
+  }
+
+  .col-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+    align-items: center;
+  }
+
+  /* Card */
+  .card {
+    width: 72px;
+    height: 100px;
+    background: #fff;
+    border-radius: 7px;
+    position: relative;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    color: #333;
+    user-select: none;
+    animation: cardDeal 0.3s ease-out both;
+    flex-shrink: 0;
+  }
+
+  .card.red {
+    color: #e33;
+  }
+
+  .card-corner {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1;
+    font-size: 0.65rem;
+    font-weight: 700;
+  }
+
+  .card-corner .card-rank {
+    font-size: 0.8rem;
+  }
+
+  .card-corner .card-suit {
+    font-size: 0.6rem;
+  }
+
+  .top-left {
+    top: 4px;
+    left: 5px;
+  }
+
+  .bottom-right {
+    bottom: 4px;
+    right: 5px;
+    transform: rotate(180deg);
+  }
+
+  .card-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.6rem;
+  }
+
+  /* Big reveal card */
+  .big-card {
+    width: 120px;
+    height: 170px;
+    animation: popIn 0.5s ease-out;
+  }
+
+  .big-card .card-corner .card-rank {
+    font-size: 1.1rem;
+  }
+
+  .big-card .card-corner .card-suit {
+    font-size: 0.85rem;
+  }
+
+  .big-card .card-center {
+    font-size: 2.8rem;
+  }
+
+  .reveal-card-wrapper {
+    display: flex;
+    justify-content: center;
+    padding: 1rem 0;
+  }
+
+  @keyframes cardDeal {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes popIn {
+    0% { transform: scale(0) rotateY(180deg); opacity: 0; }
+    60% { transform: scale(1.1) rotateY(0); }
+    100% { transform: scale(1) rotateY(0); opacity: 1; }
+  }
+
+  /* Stagger deal animations */
+  .col-cards .card:nth-child(1) { animation-delay: 0s; }
+  .col-cards .card:nth-child(2) { animation-delay: 0.05s; }
+  .col-cards .card:nth-child(3) { animation-delay: 0.1s; }
+  .col-cards .card:nth-child(4) { animation-delay: 0.15s; }
+  .col-cards .card:nth-child(5) { animation-delay: 0.2s; }
+  .col-cards .card:nth-child(6) { animation-delay: 0.25s; }
+  .col-cards .card:nth-child(7) { animation-delay: 0.3s; }
+
+  /* Responsive */
+  @media (max-width: 560px) {
+    .columns-wrapper {
+      gap: 6px;
+    }
+
+    .card {
+      width: 56px;
+      height: 78px;
+    }
+
+    .card-center {
+      font-size: 1.2rem;
+    }
+
+    .card-corner .card-rank {
+      font-size: 0.65rem;
+    }
+
+    .card-corner .card-suit {
+      font-size: 0.5rem;
+    }
+
+    .col-btn {
+      font-size: 0.75rem;
+      padding: 0.4rem 0.25rem;
+    }
+
+    .col-cards {
+      gap: 4px;
+    }
+
+    .big-card {
+      width: 100px;
+      height: 140px;
+    }
+
+    .big-card .card-center {
+      font-size: 2.2rem;
+    }
+  }
+</style>

@@ -1,0 +1,354 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="讀心撲克牌" description="在心裡記住一張牌，我會把它移走">
+  <div class="game-page">
+    <a href="/" class="back-link">&larr; 返回遊戲列表</a>
+    <h1>🃏 讀心撲克牌</h1>
+    <div class="game-container" id="game">
+      <!-- intro -->
+      <div id="stage-intro" class="stage">
+        <p class="magician-line">「我是讀心魔術師。<br>接下來我會展示 6 張牌，請你在心中記住其中一張。<br>然後⋯⋯我會把它移走。」</p>
+        <button id="btn-start">開始魔術</button>
+      </div>
+
+      <!-- memorize -->
+      <div id="stage-memorize" class="stage hidden">
+        <p class="magician-line">「請在心中記住一張牌，不要告訴我是哪一張。」</p>
+        <div id="cards-first" class="cards-row"></div>
+        <button id="btn-memorized">我記好了</button>
+      </div>
+
+      <!-- magic -->
+      <div id="stage-magic" class="stage hidden">
+        <p class="magician-line">「讓我感應一下⋯⋯」</p>
+        <div id="cards-flip" class="cards-row flipping"></div>
+      </div>
+
+      <!-- reveal -->
+      <div id="stage-reveal" class="stage hidden">
+        <p class="magician-line">「你心裡想的那張牌，已經被我移走了。」</p>
+        <div id="cards-second" class="cards-row"></div>
+        <button id="btn-restart">再玩一次</button>
+      </div>
+    </div>
+  </div>
+</BaseLayout>
+
+<script>
+  const SUITS = ['♠', '♥', '♦', '♣'] as const;
+  const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'] as const;
+
+  type Card = { suit: typeof SUITS[number]; rank: typeof RANKS[number] };
+
+  function buildDeck(): Card[] {
+    const deck: Card[] = [];
+    for (const suit of SUITS) {
+      for (const rank of RANKS) {
+        deck.push({ suit, rank });
+      }
+    }
+    return deck;
+  }
+
+  function shuffle<T>(arr: T[]): T[] {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function pickCards(n: number, exclude: Card[] = []): Card[] {
+    const excludeSet = new Set(exclude.map(c => c.suit + c.rank));
+    const available = buildDeck().filter(c => !excludeSet.has(c.suit + c.rank));
+    return shuffle(available).slice(0, n);
+  }
+
+  function isRed(suit: string): boolean {
+    return suit === '♥' || suit === '♦';
+  }
+
+  function renderCard(card: Card): HTMLElement {
+    const el = document.createElement('div');
+    el.className = 'card' + (isRed(card.suit) ? ' red' : '');
+    el.innerHTML = `
+      <span class="card-corner top-left"><span class="card-rank">${card.rank}</span><span class="card-suit">${card.suit}</span></span>
+      <span class="card-center">${card.suit}</span>
+      <span class="card-corner bottom-right"><span class="card-rank">${card.rank}</span><span class="card-suit">${card.suit}</span></span>
+    `;
+    return el;
+  }
+
+  function renderCardBack(): HTMLElement {
+    const el = document.createElement('div');
+    el.className = 'card card-back';
+    el.innerHTML = '<span class="card-back-pattern">🂠</span>';
+    return el;
+  }
+
+  // DOM refs
+  const stages = {
+    intro: document.getElementById('stage-intro')!,
+    memorize: document.getElementById('stage-memorize')!,
+    magic: document.getElementById('stage-magic')!,
+    reveal: document.getElementById('stage-reveal')!,
+  };
+
+  const cardsFirstEl = document.getElementById('cards-first')!;
+  const cardsFlipEl = document.getElementById('cards-flip')!;
+  const cardsSecondEl = document.getElementById('cards-second')!;
+
+  const btnStart = document.getElementById('btn-start')!;
+  const btnMemorized = document.getElementById('btn-memorized')!;
+  const btnRestart = document.getElementById('btn-restart')!;
+
+  let firstHand: Card[] = [];
+
+  function showStage(name: keyof typeof stages) {
+    for (const [key, el] of Object.entries(stages)) {
+      el.classList.toggle('hidden', key !== name);
+    }
+  }
+
+  function startGame() {
+    firstHand = pickCards(6);
+    cardsFirstEl.innerHTML = '';
+    firstHand.forEach(c => cardsFirstEl.appendChild(renderCard(c)));
+    showStage('memorize');
+  }
+
+  function doMagic() {
+    // Show card backs during the magic phase
+    cardsFlipEl.innerHTML = '';
+    for (let i = 0; i < 6; i++) {
+      cardsFlipEl.appendChild(renderCardBack());
+    }
+    showStage('magic');
+
+    // After animation, reveal new cards
+    setTimeout(() => {
+      const secondHand = pickCards(5, firstHand);
+      cardsSecondEl.innerHTML = '';
+      secondHand.forEach(c => cardsSecondEl.appendChild(renderCard(c)));
+      showStage('reveal');
+    }, 1800);
+  }
+
+  function restart() {
+    showStage('intro');
+  }
+
+  btnStart.addEventListener('click', startGame);
+  btnMemorized.addEventListener('click', doMagic);
+  btnRestart.addEventListener('click', startGame);
+</script>
+
+<style>
+  .game-page {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .back-link {
+    color: #aaa;
+    text-decoration: none;
+    font-size: 0.9rem;
+    display: inline-block;
+    margin-bottom: 1rem;
+  }
+
+  .back-link:hover {
+    color: #fff;
+  }
+
+  h1 {
+    font-size: 2rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .game-container {
+    background: #1a1a2e;
+    border: 1px solid #2a2a3a;
+    border-radius: 12px;
+    padding: 2rem;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.25rem;
+  }
+
+  .stage {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    width: 100%;
+  }
+
+  .hidden {
+    display: none !important;
+  }
+
+  .magician-line {
+    font-size: 1.15rem;
+    color: #ddd;
+    line-height: 1.8;
+    max-width: 480px;
+  }
+
+  button {
+    background: #4a4a8a;
+    color: #fff;
+    border: none;
+    padding: 0.75rem 2rem;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  button:hover {
+    background: #5a5a9a;
+  }
+
+  /* Cards layout */
+  .cards-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+  }
+
+  /* Single card */
+  .card {
+    width: 90px;
+    height: 130px;
+    background: #fff;
+    border-radius: 8px;
+    position: relative;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    color: #333;
+    user-select: none;
+    animation: cardAppear 0.4s ease-out both;
+  }
+
+  .card.red {
+    color: #e33;
+  }
+
+  .card-corner {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1;
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+
+  .card-corner .card-rank {
+    font-size: 0.9rem;
+  }
+
+  .card-corner .card-suit {
+    font-size: 0.7rem;
+  }
+
+  .top-left {
+    top: 5px;
+    left: 6px;
+  }
+
+  .bottom-right {
+    bottom: 5px;
+    right: 6px;
+    transform: rotate(180deg);
+  }
+
+  .card-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 2rem;
+  }
+
+  /* Card back */
+  .card-back {
+    background: #2a4a8a;
+    color: #fff;
+  }
+
+  .card-back-pattern {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 2.5rem;
+    opacity: 0.6;
+  }
+
+  /* Animations */
+  @keyframes cardAppear {
+    from {
+      opacity: 0;
+      transform: scale(0.8) rotateY(90deg);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) rotateY(0);
+    }
+  }
+
+  .cards-row .card:nth-child(1) { animation-delay: 0s; }
+  .cards-row .card:nth-child(2) { animation-delay: 0.08s; }
+  .cards-row .card:nth-child(3) { animation-delay: 0.16s; }
+  .cards-row .card:nth-child(4) { animation-delay: 0.24s; }
+  .cards-row .card:nth-child(5) { animation-delay: 0.32s; }
+  .cards-row .card:nth-child(6) { animation-delay: 0.4s; }
+
+  /* Flipping animation for magic phase */
+  .flipping .card {
+    animation: flipCard 1.2s ease-in-out infinite alternate;
+  }
+
+  @keyframes flipCard {
+    0% { transform: rotateY(0); }
+    100% { transform: rotateY(180deg); }
+  }
+
+  .flipping .card:nth-child(1) { animation-delay: 0s; }
+  .flipping .card:nth-child(2) { animation-delay: 0.1s; }
+  .flipping .card:nth-child(3) { animation-delay: 0.2s; }
+  .flipping .card:nth-child(4) { animation-delay: 0.3s; }
+  .flipping .card:nth-child(5) { animation-delay: 0.4s; }
+  .flipping .card:nth-child(6) { animation-delay: 0.5s; }
+
+  /* Responsive */
+  @media (max-width: 480px) {
+    .card {
+      width: 70px;
+      height: 100px;
+    }
+
+    .card-center {
+      font-size: 1.5rem;
+    }
+
+    .card-corner .card-rank {
+      font-size: 0.75rem;
+    }
+
+    .card-corner .card-suit {
+      font-size: 0.6rem;
+    }
+
+    .cards-row {
+      gap: 8px;
+    }
+  }
+</style>

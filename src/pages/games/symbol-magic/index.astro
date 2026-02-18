@@ -1,0 +1,300 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="符號讀心術" description="我能猜中你心中的符號">
+  <div class="game-page">
+    <a href="/" class="back-link">&larr; 返回遊戲列表</a>
+    <h1>🔮 符號讀心術</h1>
+    <div class="game-container" id="game">
+      <!-- intro -->
+      <div id="stage-intro" class="stage">
+        <p class="magician-line">「我能透過數字的力量，讀取你心中的符號。<br>準備好了嗎？」</p>
+        <button id="btn-start">開始魔術</button>
+      </div>
+
+      <!-- step1: think of a number -->
+      <div id="stage-step1" class="stage hidden">
+        <div class="step-badge">步驟 1 / 3</div>
+        <p class="magician-line">「請在心中想一個<strong>兩位數</strong>（10 ~ 99）。<br>例如：73。」</p>
+        <button id="btn-step1">想好了</button>
+      </div>
+
+      <!-- step2: calculate -->
+      <div id="stage-step2" class="stage hidden">
+        <div class="step-badge">步驟 2 / 3</div>
+        <p class="magician-line">「現在把這個數字的<strong>十位數和個位數相加</strong>，<br>然後用<strong>原本的數字減掉這個和</strong>。<br><br>例如：73 → 7 + 3 = 10 → 73 - 10 = <strong>63</strong>」</p>
+        <button id="btn-step2">算好了</button>
+      </div>
+
+      <!-- step3: find symbol -->
+      <div id="stage-step3" class="stage hidden">
+        <div class="step-badge">步驟 3 / 3</div>
+        <p class="magician-line">「在下方的表格中找到你算出的數字，<br>記住它旁邊的符號。」</p>
+        <div id="symbol-table" class="symbol-table"></div>
+        <button id="btn-step3">記好了</button>
+      </div>
+
+      <!-- reveal -->
+      <div id="stage-reveal" class="stage hidden">
+        <p class="magician-line">「讓我感應一下⋯⋯」</p>
+        <div class="reveal-symbol" id="reveal-symbol"></div>
+        <p class="magician-line">「你心中的符號，是這個吧？」</p>
+        <button id="btn-restart">再玩一次</button>
+      </div>
+    </div>
+  </div>
+</BaseLayout>
+
+<script>
+  // Pool of interesting symbols to randomly pick from each round
+  const SYMBOL_POOL = [
+    '☀', '☁', '★', '☾', '♬', '⚡', '✿', '⚘', '☯', '⊕',
+    '△', '◇', '⬡', '⊗', '⌘', '☄', '♞', '⚛', '✦', '⏣',
+    '⍟', '◈', '⊙', '♻', '☸', '⚜', '✪', '⏚', '◉', '⎈',
+  ];
+
+  function shuffle<T>(arr: T[]): T[] {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function generateSymbolMap(): { map: Record<number, string>; answer: string } {
+    // The secret: for any two-digit number n, n - (sum of digits) is always a multiple of 9
+    // Multiples of 9 from 0..99: 0, 9, 18, 27, 36, 45, 54, 63, 72, 81
+    const multOf9 = [0, 9, 18, 27, 36, 45, 54, 63, 72, 81];
+
+    // Pick random symbols for this round
+    const shuffled = shuffle(SYMBOL_POOL);
+    const answer = shuffled[0]; // The magic symbol for all multiples of 9
+
+    const map: Record<number, string> = {};
+
+    // Assign random symbols to all numbers 0-99
+    let symbolIdx = 1;
+    for (let i = 0; i <= 99; i++) {
+      if (multOf9.includes(i)) {
+        map[i] = answer;
+      } else {
+        map[i] = shuffled[symbolIdx % shuffled.length];
+        symbolIdx++;
+        // Make sure no accidental duplicates with the answer for adjacent numbers
+        if (map[i] === answer) {
+          symbolIdx++;
+          map[i] = shuffled[symbolIdx % shuffled.length];
+        }
+      }
+    }
+
+    return { map, answer };
+  }
+
+  // DOM
+  const stages = {
+    intro: document.getElementById('stage-intro')!,
+    step1: document.getElementById('stage-step1')!,
+    step2: document.getElementById('stage-step2')!,
+    step3: document.getElementById('stage-step3')!,
+    reveal: document.getElementById('stage-reveal')!,
+  };
+
+  const symbolTableEl = document.getElementById('symbol-table')!;
+  const revealSymbolEl = document.getElementById('reveal-symbol')!;
+
+  let currentAnswer = '';
+
+  function showStage(name: keyof typeof stages) {
+    for (const [key, el] of Object.entries(stages)) {
+      el.classList.toggle('hidden', key !== name);
+    }
+  }
+
+  function renderTable(map: Record<number, string>) {
+    symbolTableEl.innerHTML = '';
+    const table = document.createElement('div');
+    table.className = 'symbol-grid';
+
+    for (let i = 0; i <= 99; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'symbol-cell';
+      cell.innerHTML = `<span class="cell-number">${i}</span><span class="cell-symbol">${map[i]}</span>`;
+      table.appendChild(cell);
+    }
+
+    symbolTableEl.appendChild(table);
+  }
+
+  function startGame() {
+    const { map, answer } = generateSymbolMap();
+    currentAnswer = answer;
+    renderTable(map);
+    showStage('step1');
+  }
+
+  function revealAnswer() {
+    revealSymbolEl.textContent = currentAnswer;
+    revealSymbolEl.classList.remove('pop');
+    void revealSymbolEl.offsetWidth; // force reflow
+    revealSymbolEl.classList.add('pop');
+    showStage('reveal');
+  }
+
+  document.getElementById('btn-start')!.addEventListener('click', startGame);
+  document.getElementById('btn-step1')!.addEventListener('click', () => showStage('step2'));
+  document.getElementById('btn-step2')!.addEventListener('click', () => showStage('step3'));
+  document.getElementById('btn-step3')!.addEventListener('click', revealAnswer);
+  document.getElementById('btn-restart')!.addEventListener('click', startGame);
+</script>
+
+<style>
+  .game-page {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .back-link {
+    color: #aaa;
+    text-decoration: none;
+    font-size: 0.9rem;
+    display: inline-block;
+    margin-bottom: 1rem;
+  }
+
+  .back-link:hover {
+    color: #fff;
+  }
+
+  h1 {
+    font-size: 2rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .game-container {
+    background: #1a1a2e;
+    border: 1px solid #2a2a3a;
+    border-radius: 12px;
+    padding: 2rem;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.25rem;
+  }
+
+  .stage {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    width: 100%;
+  }
+
+  .hidden {
+    display: none !important;
+  }
+
+  .step-badge {
+    background: #2a2a4a;
+    color: #aaa;
+    padding: 0.25rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+  }
+
+  .magician-line {
+    font-size: 1.1rem;
+    color: #ddd;
+    line-height: 1.8;
+    max-width: 520px;
+  }
+
+  button {
+    background: #4a4a8a;
+    color: #fff;
+    border: none;
+    padding: 0.75rem 2rem;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  button:hover {
+    background: #5a5a9a;
+  }
+
+  /* Symbol table */
+  .symbol-table {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .symbol-grid {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 4px;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  .symbol-cell {
+    background: #222240;
+    border-radius: 6px;
+    padding: 4px 2px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    transition: background 0.2s;
+  }
+
+  .symbol-cell:hover {
+    background: #2a2a5a;
+  }
+
+  .cell-number {
+    font-size: 0.7rem;
+    color: #888;
+  }
+
+  .cell-symbol {
+    font-size: 1.1rem;
+  }
+
+  /* Reveal */
+  .reveal-symbol {
+    font-size: 5rem;
+    line-height: 1;
+    padding: 1rem;
+  }
+
+  .reveal-symbol.pop {
+    animation: popIn 0.5s ease-out;
+  }
+
+  @keyframes popIn {
+    0% { transform: scale(0); opacity: 0; }
+    60% { transform: scale(1.3); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  /* Responsive */
+  @media (max-width: 480px) {
+    .symbol-grid {
+      grid-template-columns: repeat(5, 1fr);
+      gap: 3px;
+    }
+
+    .cell-symbol {
+      font-size: 1rem;
+    }
+
+    .reveal-symbol {
+      font-size: 4rem;
+    }
+  }
+</style>
