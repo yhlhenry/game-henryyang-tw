@@ -38,7 +38,7 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
 
 <script>
   const SUITS = ['♠', '♥', '♦', '♣'] as const;
-  const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'] as const;
+  const RANKS = ['A', 'J', 'Q', 'K'] as const;
 
   type Card = { suit: typeof SUITS[number]; rank: typeof RANKS[number] };
 
